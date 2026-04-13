@@ -1,0 +1,19 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Raypak Pool Heater",
+        "description": "Enter your Raymote device token. You can find this at raymote.raypak.com under your device settings.",
+        "data": {
+          "token": "Device Token"
+        }
+      }
+    },
+    "error": {
+      "invalid_token": "Could not connect with this token. Please check that it is correct."
+    },
+    "abort": {
+      "already_configured": "This device is already configured."
+    }
+  }
+}
