@@ -12,7 +12,6 @@ from homeassistant.const import (
     UnitOfElectricPotential,
     UnitOfTemperature,
     UnitOfTime,
-    UnitOfVolumeFlowRate,
 )
 
 DOMAIN = "raypak_pool_heater"
@@ -25,30 +24,39 @@ CONF_TOKEN = "token"
 
 DEFAULT_SCAN_INTERVAL = 30  # seconds
 
-# ── Sensor definitions ──────────────────────────────────────────────────────
-# Each tuple: (api_key, name, unit, device_class, state_class, icon, enabled_by_default, entity_category)
+# ── AVIA Status enum (v65) ────────────────────────────────────────────────────
+# Source: observed values from the Raymote UI
+AVIA_STATUS = {
+    0: "Initialization",
+    1: "No Demand",
+    2: "Pre-Purge",
+    3: "Spark",
+    4: "Heating",
+    5: "Post-Purge",
+    6: "Waiting Water",
+    9: "Check Heater",
+}
+
+# ── Heat Mode enum (v53) ──────────────────────────────────────────────────────
+HEAT_MODE = {
+    0: "Off",
+    1: "Pool",
+    2: "Spa",
+    3: "T Spa", # No idea what this is so I wouldn't use it
+}
+
+# ── Primary sensors (enabled by default, included in auto-generated dashboards)
+#
+# Keep this list focused on the sensors most users will actually want on a
+# dashboard. Sensors that are informational, rarely change, or only useful for
+# specific setups belong in DIAGNOSTIC_SENSOR_TYPES instead.
 
 SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
-    # ── Temperature sensors ──────────────────────────────────────────────
-    SensorEntityDescription(
-        key="v3",
-        name="Inlet Temp 1",
-        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:thermometer-water",
-    ),
-    SensorEntityDescription(
-        key="v4",
-        name="Inlet Temp 2",
-        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:thermometer-water",
-    ),
+
+    # ── Temperature ──────────────────────────────────────────────────────
     SensorEntityDescription(
         key="v52",
-        name="Average Inlet Temp",
+        name="Inlet Water Temp (Avg)",
         native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -56,7 +64,106 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     ),
     SensorEntityDescription(
         key="v5",
-        name="Outlet Temp",
+        name="Outlet Water Temp",
+        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:thermometer-water",
+    ),
+    SensorEntityDescription(
+        key="v41",
+        name="Pool Setpoint",
+        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        icon="mdi:thermostat",
+    ),
+
+    # ── Flow ─────────────────────────────────────────────────────────────
+    SensorEntityDescription(
+        key="v7",
+        name="Flow Sensor",
+        native_unit_of_measurement="gal",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:waves-arrow-right",
+    ),
+    SensorEntityDescription(
+        key="v112",
+        name="Raymote Estimated Flow",
+        native_unit_of_measurement="gal",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:water-pump",
+    ),
+
+    # ── Status ───────────────────────────────────────────────────────────
+    SensorEntityDescription(
+        key="v55",
+        name="Status Text",
+        icon="mdi:fire-circle",
+    ),
+    SensorEntityDescription(
+        key="v65",
+        name="AVIA Status",
+        # 0=Init, 1=No Demand, 2=Pre-Purge, 3=Spark,
+        # 4=Heating, 5=Post-Purge, 6=Waiting Water, 9=Check Heater
+        icon="mdi:state-machine",
+    ),
+    SensorEntityDescription(
+        key="v13",
+        name="Fault Code",
+        icon="mdi:alert-circle-outline",
+    ),
+
+    # ── Heating estimates (useful for automations) ────────────────────────
+    SensorEntityDescription(
+        key="v16",
+        name="Est Heat Time Pool",
+        # Hours to reach pool setpoint from current temp
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:clock-fast",
+    ),
+
+    # ── Spa (disabled by default; enable if spa is present) ──────────────
+    SensorEntityDescription(
+        key="v43",
+        name="Spa Setpoint",
+        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        entity_registry_enabled_default=False,
+        icon="mdi:hot-tub",
+    ),
+    SensorEntityDescription(
+        key="v18",
+        name="Est Heat Time Spa",
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        device_class=SensorDeviceClass.DURATION,
+        entity_registry_enabled_default=False,
+        icon="mdi:clock-fast",
+    ),
+)
+
+# ── Diagnostic sensors ────────────────────────────────────────────────────────
+#
+# These carry EntityCategory.DIAGNOSTIC, which prevents them from appearing in
+# auto-generated dashboards. Enabled status is preserved — sensors without
+# entity_registry_enabled_default=False are still on by default, they just
+# won't be picked up by automatic dashboard generation.
+
+DIAGNOSTIC_SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
+
+    # ── Raw inlet temps (avg v52 is the primary dashboard sensor) ────────
+    SensorEntityDescription(
+        key="v3",
+        name="Inlet Water Temp 1",
+        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:thermometer-water",
+    ),
+    SensorEntityDescription(
+        key="v4",
+        name="Inlet Water Temp 2",
         native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -64,28 +171,23 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     ),
     SensorEntityDescription(
         key="v6",
-        name="Vent Temp",
+        name="Vent Flue Temp",
         native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:thermometer-high",
     ),
+
+    # ── Flow ─────────────────────────────────────────────────────────────
     SensorEntityDescription(
-        key="v43",
-        name="Outside Air Temp",
-        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
-        device_class=SensorDeviceClass.TEMPERATURE,
+        key="v14",
+        name="AVIA Estimated HX Flow",
+        native_unit_of_measurement="gal",
         state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:thermometer",
+        icon="mdi:water-pump",
     ),
-    SensorEntityDescription(
-        key="v41",
-        name="Setpoint",
-        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        icon="mdi:thermostat",
-    ),
-    # ── Electrical sensors ───────────────────────────────────────────────
+
+    # ── Electrical / combustion ──────────────────────────────────────────
     SensorEntityDescription(
         key="v10",
         name="Power Supply Voltage",
@@ -96,41 +198,16 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     ),
     SensorEntityDescription(
         key="v11",
-        name="Flame Current",
+        name="Flame Strength",
         native_unit_of_measurement="uA",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:fire",
     ),
-    # ── Flow sensors ─────────────────────────────────────────────────────
-    SensorEntityDescription(
-        key="v112",
-        name="Estimated HX Flow",
-        native_unit_of_measurement="gal",
-        state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:water-pump",
-    ),
-    SensorEntityDescription(
-        key="v114",
-        name="Flow Meter",
-        native_unit_of_measurement="gal",
-        state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:water-pump",
-    ),
-    # ── Status sensors ───────────────────────────────────────────────────
-    SensorEntityDescription(
-        key="v55",
-        name="Heater Status",
-        icon="mdi:fire-circle",
-    ),
-    SensorEntityDescription(
-        key="v106",
-        name="Error Code",
-        icon="mdi:alert-circle-outline",
-    ),
-    # ── Lifetime / counter sensors ───────────────────────────────────────
+
+    # ── Lifetime counters ────────────────────────────────────────────────
     SensorEntityDescription(
         key="v25",
-        name="Heat Cycles",
+        name="Heating Cycles",
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:counter",
     ),
@@ -142,148 +219,118 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     ),
     SensorEntityDescription(
         key="v27",
-        name="Lifetime Heat Hours",
+        name="Lifetime Heating Hours",
         native_unit_of_measurement=UnitOfTime.HOURS,
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:clock-outline",
     ),
-    # ── Equipment info ───────────────────────────────────────────────────
+
+    # ── Pool configuration ────────────────────────────────────────────────
     SensorEntityDescription(
         key="v45",
-        name="Capacity",
+        name="Heater BTUs",
         native_unit_of_measurement="kBTU",
         icon="mdi:fire",
     ),
     SensorEntityDescription(
+        key="v15",
+        name="AVIA Est Pool Volume",
+        # Heater's internally calculated pool volume; compare with v115 (user-configured)
+        native_unit_of_measurement="gal",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:pool",
+    ),
+    SensorEntityDescription(
         key="v115",
-        name="Pool Size",
+        name="Pool Volume",
+        # This is user provided, i.e. you configure it in the app
         native_unit_of_measurement="gal",
         icon="mdi:pool",
     ),
     SensorEntityDescription(
-        key="v46",
-        name="VS Pump Running",
-        icon="mdi:pump",
+        key="v40",
+        name="Max Pool Setpoint",
+        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+        entity_registry_enabled_default=False,
+        icon="mdi:thermometer-chevron-up",
     ),
+
+    # ── Spa configuration (disabled by default; enable if spa is present) ─
+    SensorEntityDescription(
+        key="v42",
+        name="Max Spa Setpoint",
+        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+        entity_registry_enabled_default=False,
+        icon="mdi:thermometer-chevron-up",
+    ),
+    SensorEntityDescription(
+        key="v116",
+        name="Spa Volume",
+        # This is user provided (i.e. you configure it in the app)
+        native_unit_of_measurement="gal",
+        entity_registry_enabled_default=False,
+        icon="mdi:hot-tub",
+    ),
+    SensorEntityDescription(
+        key="v17",
+        name="AVIA Est Spa Volume",
+        native_unit_of_measurement="gal",
+        entity_registry_enabled_default=False,
+        icon="mdi:hot-tub",
+    ),
+
     # ── Connectivity ─────────────────────────────────────────────────────
     SensorEntityDescription(
         key="v64",
-        name="RSSI",
+        name="WiFi RSSI",
         native_unit_of_measurement=SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
         device_class=SensorDeviceClass.SIGNAL_STRENGTH,
         state_class=SensorStateClass.MEASUREMENT,
-        entity_registry_enabled_default=False,
         icon="mdi:wifi",
     ),
-)
 
-# ── Diagnostic sensors (disabled by default, for investigation) ──────────
-DIAGNOSTIC_SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
-    SensorEntityDescription(
-        key="v2",
-        name="Mode ID",
-        icon="mdi:information-outline",
-        entity_registry_enabled_default=False,
-    ),
+    # ── Service / calibration ─────────────────────────────────────────────
     SensorEntityDescription(
         key="v8",
-        name="Unknown v8",
-        icon="mdi:help-circle-outline",
+        name="ASME Setting",
+        # Pressure vessel calibration offset; range ±2.5; non-zero at rest is normal
+        state_class=SensorStateClass.MEASUREMENT,
         entity_registry_enabled_default=False,
+        icon="mdi:gauge",
     ),
     SensorEntityDescription(
         key="v12",
-        name="Unknown v12",
-        icon="mdi:help-circle-outline",
+        name="Safety Bits",
+        # Bitmask; non-zero values indicate specific safety systems active during operation
         entity_registry_enabled_default=False,
+        icon="mdi:shield-alert-outline",
     ),
+
+    # ── External sensors (enable if hardware present) ─────────────────────
     SensorEntityDescription(
-        key="v14",
-        name="Unknown v14",
-        icon="mdi:help-circle-outline",
+        key="v233",
+        name="Outside Air Temp",
+        # °C from optional external sensor; reads 0 if sensor not connected
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
         entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="v15",
-        name="Heat Time Estimate",
-        icon="mdi:clock-outline",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="v16",
-        name="Unknown v16",
-        icon="mdi:help-circle-outline",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="v40",
-        name="Max Temp Setting",
-        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
-        icon="mdi:thermometer-chevron-up",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="v42",
-        name="High Limit",
-        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
-        icon="mdi:thermometer-alert",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="v44",
-        name="Unknown v44",
-        icon="mdi:help-circle-outline",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="v50",
-        name="Unknown v50",
-        icon="mdi:help-circle-outline",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="v75",
-        name="Unknown v75",
-        icon="mdi:help-circle-outline",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="v145",
-        name="Unknown v145",
-        icon="mdi:help-circle-outline",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="v159",
-        name="Unknown v159",
-        icon="mdi:help-circle-outline",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="v167",
-        name="Unknown v167",
-        icon="mdi:help-circle-outline",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="v168",
-        name="Unknown v168",
-        icon="mdi:help-circle-outline",
-        entity_registry_enabled_default=False,
-    ),
-    SensorEntityDescription(
-        key="v190",
-        name="Unknown v190",
-        icon="mdi:help-circle-outline",
-        entity_registry_enabled_default=False,
+        icon="mdi:thermometer",
     ),
 )
 
-# Keys used for the heater switch
-KEY_HEATER_ON_OFF = "v53"
-KEY_HEATER_STATUS = "v55"
+# ── Keys used by other platforms ─────────────────────────────────────────────
 
-# Keys used for the climate entity
-KEY_SETPOINT = "v41"
-KEY_AVG_INLET = "v52"
+# v53 = AVIA Heat Mode enum: 0=Off, 1=Pool, 2=Spa, 3=T Spa
+KEY_HEAT_MODE = "v53"
+HEAT_MODE_OFF = 0
+HEAT_MODE_POOL = 1
+HEAT_MODE_SPA = 2
+
+KEY_HEATER_STATUS_TEXT = "v55"
+KEY_AVIA_STATUS = "v65"     # Rich state enum (used for hvac_action in climate.py)
+
+KEY_SETPOINT = "v41"        # Pool setpoint (double)
+KEY_SPA_SETPOINT = "v43"    # Spa setpoint (double)
+KEY_AVG_INLET = "v52"       # AVIA average inlet temp

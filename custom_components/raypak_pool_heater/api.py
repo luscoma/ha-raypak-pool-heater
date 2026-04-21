@@ -39,14 +39,20 @@ class RaypakApiClient:
         except (aiohttp.ClientError, TimeoutError) as err:
             raise RaypakApiError(f"Error fetching data: {err}") from err
 
-    async def async_set_heater(self, on: bool) -> None:
-        """Turn the heater on or off (v53=1 / v53=0)."""
-        value = 1 if on else 0
-        await self._async_update("v53", value)
+    async def async_set_heat_mode(self, mode: int) -> None:
+        """Set the AVIA heat mode via v53.
+
+        mode: 0=Off, 1=Pool, 2=Spa (see HEAT_MODE in const.py)
+        """
+        await self._async_update("v53", mode)
 
     async def async_set_temperature(self, temp: int) -> None:
-        """Set the target temperature (v41=<temp>)."""
+        """Set the pool target temperature via v41."""
         await self._async_update("v41", temp)
+
+    async def async_set_spa_temperature(self, temp: int) -> None:
+        """Set the spa target temperature via v43."""
+        await self._async_update("v43", temp)
 
     async def _async_update(self, key: str, value: int | float) -> None:
         """Send an update command to the Raymote API."""
@@ -61,7 +67,6 @@ class RaypakApiClient:
         """Validate the token by making a test API call."""
         try:
             data = await self.async_get_data()
-            # A valid response should contain known keys
             return "v55" in data
         except RaypakApiError:
             return False

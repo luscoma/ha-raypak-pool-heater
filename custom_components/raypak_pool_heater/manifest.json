@@ -1,12 +1,12 @@
 {
   "domain": "raypak_pool_heater",
   "name": "Raypak Pool Heater",
-  "codeowners": ["@alexlusco"],
+  "codeowners": ["@luscoma"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/alexlusco/ha-raypak-pool-heater",
+  "documentation": "https://github.com/luscoma/ha-raypak-pool-heater",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/alexlusco/ha-raypak-pool-heater/issues",
+  "issue_tracker": "https://github.com/luscoma/ha-raypak-pool-heater/issues",
   "requirements": [],
   "version": "1.0.0"
 }
