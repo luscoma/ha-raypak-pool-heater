@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon.png" width="140" alt="Raymote icon">
+</p>
+
 # Raypak Pool Heater
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
@@ -58,6 +62,10 @@ Your token is in the URL when viewing your device at [raymote.raypak.com](https:
 `raymote.raypak.com/dashboard/.../devices/<ID>/dashboard`
 
 It can also be found via your device's API settings or export.
+
+<div style="display: flex">
+  <img src="assets/auth_token.png" width="250" alt="The dashboard where your auth token is">
+</p>
 
 ---
 
