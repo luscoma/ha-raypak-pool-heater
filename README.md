@@ -90,7 +90,7 @@ Each sensor's status in the integration is noted in the table:
 | v16 | Est Heat Time Pool | hr | enabled | Hours to reach pool setpoint |
 | v41 | Pool Setpoint | °F | enabled | Write target |
 | v52 | Inlet Water Temp (Avg) | °F | enabled | Computed as (v3+v4)/2 |
-| v55 | Status Text | string | enabled | "Heating", "No Demand", etc. |
+| v55 | Status Text | string | disabled | Raw status string from Raymote; redundant with AVIA Status |
 | v65 | AVIA Status | enum | enabled | See state machine below |
 | v112 | Raymote Estimated Flow | gal | enabled | Raymote-side estimate |
 | v3 | Inlet Water Temp 1 | °F | enabled, diagnostic | Raw sensor 1; v52 is the dashboard-friendly average |

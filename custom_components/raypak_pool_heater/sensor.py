@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DIAGNOSTIC_SENSOR_TYPES, DOMAIN, SENSOR_TYPES
+from .const import AVIA_STATUS, DIAGNOSTIC_SENSOR_TYPES, DOMAIN, KEY_AVIA_STATUS, SENSOR_TYPES
 from .coordinator import RaypakDataCoordinator
 
 
@@ -24,7 +24,10 @@ async def async_setup_entry(
     entities: list[RaypakSensor] = []
 
     for description in SENSOR_TYPES:
-        entities.append(RaypakSensor(coordinator, entry, description))
+        if description.key == KEY_AVIA_STATUS:
+            entities.append(RaypakAviaStatusSensor(coordinator, entry, description))
+        else:
+            entities.append(RaypakSensor(coordinator, entry, description))
 
     for description in DIAGNOSTIC_SENSOR_TYPES:
         entities.append(
@@ -65,3 +68,33 @@ class RaypakSensor(CoordinatorEntity[RaypakDataCoordinator], SensorEntity):
         if self.coordinator.data is None:
             return None
         return self.coordinator.data.get(self.entity_description.key)
+
+
+class RaypakAviaStatusSensor(RaypakSensor):
+    """Sensor for AVIA Status (v65) that returns the human-readable state name.
+
+    The raw integer code is preserved as an extra attribute.
+    """
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the AVIA status as a readable string (e.g. 'Heating')."""
+        if self.coordinator.data is None:
+            return None
+        raw = self.coordinator.data.get(KEY_AVIA_STATUS)
+        try:
+            code = int(raw)
+        except (ValueError, TypeError):
+            return None
+        return AVIA_STATUS.get(code, f"Unknown ({raw})")
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Include the raw integer code as an attribute."""
+        if self.coordinator.data is None:
+            return {}
+        raw = self.coordinator.data.get(KEY_AVIA_STATUS)
+        try:
+            return {"code": int(raw)}
+        except (ValueError, TypeError):
+            return {}

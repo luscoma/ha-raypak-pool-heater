@@ -98,6 +98,7 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="v55",
         name="Status Text",
+        entity_registry_enabled_default=False,
         icon="mdi:fire-circle",
     ),
     SensorEntityDescription(
